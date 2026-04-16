@@ -2,6 +2,7 @@
 const express = require("express");
 const mysql = require("mysql2");
 const cors = require("cors");
+require("dotenv").config();
 
 const app = express();
 
@@ -11,11 +12,11 @@ app.use(express.json());
 
 // ================= DB CONNECTION =================
 const db = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "",
-  database: "ecotrack",
-  port: 3307
+  host: process.env.MYSQLHOST,
+  user: process.env.MYSQLUSER,
+  password: process.env.MYSQLPASSWORD,
+  database: process.env.MYSQLDATABASE,
+  port: process.env.MYSQLPORT
 });
 
 db.connect(err => {
@@ -48,29 +49,35 @@ app.post("/login", (req, res) => {
 
 // ================= ADD REQUEST =================
 app.post("/request", (req, res) => {
-
-  console.log("Incoming Data:", req.body); // 🔥 DEBUG
+  console.log("Incoming:", req.body);
 
   const { name, wasteType, location } = req.body;
 
-  // validation
-  if (!name || !wasteType || !location) {
-    return res.json({ success: false, error: "Missing fields" });
-  }
-
   const sql = `
-    INSERT INTO requests (name, wasteType, location, status, points)
-    VALUES (?, ?, ?, 'Pending', 0)
+    INSERT INTO requests (name, wasteType, location)
+    VALUES (?, ?, ?)
   `;
 
   db.query(sql, [name, wasteType, location], (err, result) => {
     if (err) {
-      console.log("SQL ERROR:", err); // 🔥 IMPORTANT
+      console.log("DB ERROR:", err);
       return res.json({ success: false });
     }
 
-    console.log("Inserted:", result);
     res.json({ success: true });
+  });
+});
+
+
+app.get("/getRequests", (req, res) => {
+  db.query("SELECT * FROM requests", (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.json([]);
+    }
+
+    console.log("DATA:", result);
+    res.json(result);
   });
 });
 
@@ -126,7 +133,18 @@ app.put("/recycle/:id", (req, res) => {
   );
 });
 
+
 // ================= SERVER =================
 app.listen(5000, () => {
-  console.log("🚀 Server running on http://localhost:5000");
+  console.log("🚀 Server running on https://ecotrack-q9wt.onrender.com");
+});
+app.get("/", (req, res) => {
+    res.send("🚀 EcoTrack Backend is Running!");
+});
+const path = require("path");
+
+app.use(express.static(path.join(__dirname, "../frontend")));
+
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "../frontend/index.html"));
 });
